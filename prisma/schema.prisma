@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,9 +7,798 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ============================================
-// ENUMS
-// ============================================
+model User {
+  id                   String             @id @default(cuid())
+  email                String?            @unique
+  phone                String?            @unique
+  passwordHash         String?
+  firstName            String?
+  lastName             String?
+  displayName          String
+  avatar               String?
+  bio                  String?
+  dateOfBirth          DateTime?
+  gender               Gender?
+  nationality          String?
+  country              String?
+  city                 String?
+  address              String?
+  status               UserStatus         @default("PENDING")
+  role                 Role               @default("USER")
+  emailVerified        DateTime?
+  phoneVerified        DateTime?
+  membershipLevel      MembershipLevel    @default("BRONZE")
+  loyaltyPoints        Int                @default(0)
+  language             String             @default("ar")
+  preferredCurrency    String             @default("SYP")
+  notificationSettings String?
+  lastLogin            DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  bookingsAsHost       Booking[]          @relation("HostBookings")
+  bookingsAsGuest      Booking[]          @relation("GuestBookings")
+  cart                 Cart?
+  ownedCompanies       Company[]          @relation("CompanyOwner")
+  employeeOf           CompanyEmployee[]
+  oauthAccounts        OAuthAccount[]
+  orders               Order[]
+  products             Product[]
+  replies              Reply[]
+  reviewHelpful        ReviewHelpful[]
+  reviewerProfile      ReviewerProfile?
+  reviews              Review[]
+  services             Service[]
+  sessions             Session[]
+  topics               Topic[]
+  verifications        UserVerification[]
+
+  @@index([email])
+  @@index([phone])
+  @@index([role])
+  @@index([status])
+  @@map("users")
+}
+
+model OAuthAccount {
+  id           String        @id @default(cuid())
+  userId       String
+  provider     OAuthProvider
+  providerId   String
+  accessToken  String?
+  refreshToken String?
+  expiresAt    DateTime?
+  createdAt    DateTime      @default(now())
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerId])
+  @@index([userId])
+  @@map("oauth_accounts")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  userAgent String?
+  ipAddress String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("sessions")
+}
+
+model OTPCode {
+  id        String   @id @default(cuid())
+  phone     String
+  code      String
+  type      OTPType
+  verified  Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([phone, code, type])
+  @@index([phone])
+  @@map("otp_codes")
+}
+
+model UserVerification {
+  id              String             @id @default(cuid())
+  userId          String
+  type            VerificationType
+  status          VerificationStatus @default("PENDING")
+  documentType    String?
+  documentUrl     String?
+  documentNumber  String?
+  verifiedAt      DateTime?
+  verifiedBy      String?
+  rejectionReason String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+  @@map("user_verifications")
+}
+
+model Company {
+  id              String              @id @default(cuid())
+  name            String
+  slug            String              @unique
+  type            CompanyType
+  description     String?
+  email           String?
+  phone           String?
+  website         String?
+  country         String?
+  city            String?
+  address         String?
+  logo            String?
+  coverImage      String?
+  commercialReg   String?
+  taxNumber       String?
+  documents       String?
+  status          CompanyStatus       @default("PENDING")
+  verifiedAt      DateTime?
+  verifiedBy      String?
+  rejectionReason String?
+  totalServices   Int                 @default(0)
+  totalProducts   Int                 @default(0)
+  totalBookings   Int                 @default(0)
+  rating          Float               @default(0)
+  reviewCount     Int                 @default(0)
+  ownerId         String
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  owner           User                @relation("CompanyOwner", fields: [ownerId], references: [id])
+  employees       CompanyEmployee[]
+  invitations     CompanyInvitation[]
+  products        Product[]
+  services        Service[]
+
+  @@index([type])
+  @@index([status])
+  @@index([ownerId])
+  @@map("companies")
+}
+
+model CompanyEmployee {
+  id          String       @id @default(cuid())
+  companyId   String
+  userId      String
+  role        EmployeeRole @default("STAFF")
+  permissions String?
+  invitedBy   String?
+  joinedAt    DateTime     @default(now())
+  createdAt   DateTime     @default(now())
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, userId])
+  @@index([companyId])
+  @@index([userId])
+  @@map("company_employees")
+}
+
+model CompanyInvitation {
+  id        String           @id @default(cuid())
+  companyId String
+  email     String
+  role      EmployeeRole     @default("STAFF")
+  token     String           @unique
+  status    InvitationStatus @default("PENDING")
+  invitedBy String
+  expiresAt DateTime
+  createdAt DateTime         @default(now())
+  company   Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([email])
+  @@index([token])
+  @@map("company_invitations")
+}
+
+model Destination {
+  id               String            @id @default(cuid())
+  name             String
+  slug             String            @unique
+  type             DestinationType
+  description      String
+  shortDesc        String?
+  country          String            @default("سوريا")
+  city             String
+  address          String?
+  latitude         Float?
+  longitude        Float?
+  images           String
+  coverImage       String?
+  highlights       String?
+  bestTimeToVisit  String?
+  entryFee         Float?            @default(0)
+  openingHours     String?
+  duration         String?
+  rating           Float             @default(0)
+  reviewCount      Int               @default(0)
+  viewCount        Int               @default(0)
+  visitCount       Int               @default(0)
+  isVerified       Boolean           @default(false)
+  verifiedAt       DateTime?
+  verifiedBy       String?
+  ownerId          String?
+  companyId        String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  activities       Activity[]
+  tourDestinations TourDestination[]
+
+  @@index([type])
+  @@index([city])
+  @@index([isVerified])
+  @@map("destinations")
+}
+
+model Activity {
+  id                 String                 @id @default(cuid())
+  title              String
+  slug               String                 @unique
+  type               ActivityType
+  description        String
+  shortDesc          String?
+  destinationId      String?
+  location           String
+  meetingPoint       String?
+  latitude           Float?
+  longitude          Float?
+  duration           Int
+  maxParticipants    Int                    @default(10)
+  minParticipants    Int                    @default(1)
+  difficultyLevel    String?
+  ageRestriction     String?
+  price              Float
+  currency           String                 @default("SYP")
+  pricePerPerson     Boolean                @default(true)
+  discountPrice      Float?
+  images             String
+  coverImage         String?
+  videoUrl           String?
+  included           String?
+  excluded           String?
+  requirements       String?
+  availability       String?
+  cancellationPolicy String?
+  rating             Float                  @default(0)
+  reviewCount        Int                    @default(0)
+  bookingCount       Int                    @default(0)
+  status             CompanyStatus          @default("PENDING")
+  isFeatured         Boolean                @default(false)
+  ownerId            String?
+  companyId          String?
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  destination        Destination?           @relation(fields: [destinationId], references: [id])
+  availabilitySlots  ActivityAvailability[]
+  tourActivities     TourActivity[]
+
+  @@index([type])
+  @@index([destinationId])
+  @@index([status])
+  @@index([isFeatured])
+  @@map("activities")
+}
+
+model ActivityAvailability {
+  id          String   @id @default(cuid())
+  activityId  String
+  date        DateTime
+  startTime   String
+  endTime     String
+  maxCapacity Int
+  bookedCount Int      @default(0)
+  isAvailable Boolean  @default(true)
+  price       Float?
+  createdAt   DateTime @default(now())
+  activity    Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@unique([activityId, date, startTime])
+  @@index([activityId])
+  @@index([date])
+  @@map("activity_availability")
+}
+
+model Tour {
+  id                 String             @id @default(cuid())
+  title              String
+  slug               String             @unique
+  type               TourType
+  description        String
+  shortDesc          String?
+  durationDays       Int
+  durationNights     Int
+  maxParticipants    Int                @default(15)
+  minParticipants    Int                @default(2)
+  pricePerPerson     Float
+  currency           String             @default("SYP")
+  singleSupplement   Float?
+  images             String
+  coverImage         String?
+  included           String?
+  excluded           String?
+  departureDates     String?
+  cancellationPolicy String?
+  rating             Float              @default(0)
+  reviewCount        Int                @default(0)
+  bookingCount       Int                @default(0)
+  status             CompanyStatus      @default("PENDING")
+  isFeatured         Boolean            @default(false)
+  ownerId            String?
+  companyId          String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  tourActivities     TourActivity[]
+  availability       TourAvailability[]
+  dailyProgram       TourDay[]
+  destinations       TourDestination[]
+
+  @@index([type])
+  @@index([status])
+  @@index([isFeatured])
+  @@map("tours")
+}
+
+model TourDestination {
+  id            String      @id @default(cuid())
+  tourId        String
+  destinationId String
+  dayNumber     Int
+  duration      Int?
+  notes         String?
+  destination   Destination @relation(fields: [destinationId], references: [id])
+  tour          Tour        @relation(fields: [tourId], references: [id], onDelete: Cascade)
+
+  @@unique([tourId, dayNumber, destinationId])
+  @@index([tourId])
+  @@index([destinationId])
+  @@map("tour_destinations")
+}
+
+model TourDay {
+  id            String  @id @default(cuid())
+  tourId        String
+  dayNumber     Int
+  title         String
+  description   String
+  activities    String?
+  meals         String?
+  accommodation String?
+  notes         String?
+  tour          Tour    @relation(fields: [tourId], references: [id], onDelete: Cascade)
+
+  @@unique([tourId, dayNumber])
+  @@index([tourId])
+  @@map("tour_days")
+}
+
+model TourActivity {
+  id         String   @id @default(cuid())
+  tourId     String
+  activityId String
+  dayNumber  Int
+  startTime  String?
+  duration   Int?
+  notes      String?
+  activity   Activity @relation(fields: [activityId], references: [id])
+  tour       Tour     @relation(fields: [tourId], references: [id], onDelete: Cascade)
+
+  @@index([tourId])
+  @@index([activityId])
+  @@map("tour_activities")
+}
+
+model TourAvailability {
+  id          String   @id @default(cuid())
+  tourId      String
+  startDate   DateTime
+  endDate     DateTime
+  maxCapacity Int
+  bookedCount Int      @default(0)
+  isAvailable Boolean  @default(true)
+  price       Float?
+  createdAt   DateTime @default(now())
+  tour        Tour     @relation(fields: [tourId], references: [id], onDelete: Cascade)
+
+  @@index([tourId])
+  @@index([startDate])
+  @@map("tour_availability")
+}
+
+model Product {
+  id          String      @id @default(cuid())
+  name        String
+  description String
+  price       Float
+  category    String
+  location    String
+  rating      Float       @default(0)
+  reviews     Int         @default(0)
+  image       String
+  vendorId    String
+  vendorName  String?
+  companyId   String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  cartItems   CartItem[]
+  orderItems  OrderItem[]
+  company     Company?    @relation(fields: [companyId], references: [id])
+  vendor      User        @relation(fields: [vendorId], references: [id])
+
+  @@index([companyId])
+  @@map("products")
+}
+
+model Cart {
+  id     String     @id @default(cuid())
+  userId String     @unique
+  items  CartItem[]
+  user   User       @relation(fields: [userId], references: [id])
+
+  @@map("carts")
+}
+
+model CartItem {
+  id        String  @id @default(cuid())
+  cartId    String
+  productId String
+  quantity  Int     @default(1)
+  product   Product @relation(fields: [productId], references: [id])
+  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+
+  @@unique([cartId, productId])
+  @@map("cart_items")
+}
+
+model Topic {
+  id            String    @id @default(cuid())
+  title         String
+  content       String
+  authorId      String
+  categoryId    String
+  subCategoryId String?
+  likesCount    Int       @default(0)
+  repliesCount  Int       @default(0)
+  isOfficial    Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime?
+  replies       Reply[]
+  author        User      @relation(fields: [authorId], references: [id])
+
+  @@map("topics")
+}
+
+model Reply {
+  id         String    @id @default(cuid())
+  topicId    String
+  content    String
+  authorId   String
+  likesCount Int       @default(0)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime?
+  author     User      @relation(fields: [authorId], references: [id])
+  topic      Topic     @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@map("replies")
+}
+
+model Booking {
+  id         String        @id @default(cuid())
+  guestId    String
+  hostId     String
+  serviceId  String
+  checkIn    DateTime
+  checkOut   DateTime
+  guests     Int           @default(1)
+  totalPrice Float
+  status     BookingStatus @default("PENDING")
+  escrowId   String?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  service    Service       @relation(fields: [serviceId], references: [id])
+  host       User          @relation("HostBookings", fields: [hostId], references: [id])
+  guest      User          @relation("GuestBookings", fields: [guestId], references: [id])
+
+  @@map("bookings")
+}
+
+model Service {
+  id               String    @id @default(cuid())
+  title            String
+  description      String
+  location         String
+  price            Float
+  originalPrice    Float?
+  rating           Float     @default(0)
+  reviews          Int       @default(0)
+  views            Int       @default(0)
+  images           String
+  type             String
+  amenities        String
+  features         String
+  mainCategoryId   String
+  subCategoryId    String?
+  subSubCategoryId String?
+  hostId           String?
+  hostName         String?
+  hostAvatar       String?
+  isSuperhost      Boolean   @default(false)
+  companyId        String?
+  maxGuests        Int       @default(4)
+  bedrooms         Int       @default(1)
+  beds             Int       @default(1)
+  baths            Int       @default(1)
+  isPopular        Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  bookings         Booking[]
+  company          Company?  @relation(fields: [companyId], references: [id])
+  host             User?     @relation(fields: [hostId], references: [id])
+
+  @@index([companyId])
+  @@index([mainCategoryId])
+  @@index([isPopular])
+  @@map("services")
+}
+
+model Order {
+  id        String      @id @default(cuid())
+  userId    String
+  total     Float
+  status    OrderStatus @default("PENDING")
+  escrowId  String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  items     OrderItem[]
+  user      User        @relation(fields: [userId], references: [id])
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int
+  price     Float
+  product   Product @relation(fields: [productId], references: [id])
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("order_items")
+}
+
+model Escrow {
+  id            String              @id @default(cuid())
+  buyerId       String
+  providerId    String
+  amount        Float
+  platformFee   Float               @default(0)
+  netAmount     Float
+  currency      String              @default("SYP")
+  status        EscrowStatus        @default("PENDING")
+  referenceType String
+  referenceId   String
+  fundedAt      DateTime?
+  releasedAt    DateTime?
+  refundedAt    DateTime?
+  autoReleaseAt DateTime?
+  notes         String?
+  releaseNotes  String?
+  refundReason  String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  disputes      Dispute[]
+  transactions  EscrowTransaction[]
+
+  @@index([buyerId])
+  @@index([providerId])
+  @@index([status])
+  @@index([referenceType, referenceId])
+  @@map("escrows")
+}
+
+model EscrowTransaction {
+  id          String                @id @default(cuid())
+  escrowId    String
+  type        EscrowTransactionType
+  amount      Float
+  currency    String                @default("SYP")
+  description String?
+  metadata    String?
+  fromUserId  String?
+  toUserId    String?
+  createdAt   DateTime              @default(now())
+  escrow      Escrow                @relation(fields: [escrowId], references: [id], onDelete: Cascade)
+
+  @@index([escrowId])
+  @@index([type])
+  @@map("escrow_transactions")
+}
+
+model Dispute {
+  id             String            @id @default(cuid())
+  escrowId       String
+  referenceType  String
+  referenceId    String
+  openedBy       String
+  againstUser    String
+  type           DisputeType
+  reason         String
+  description    String
+  status         DisputeStatus     @default("OPEN")
+  decision       DisputeDecision?
+  decisionReason String?
+  decidedBy      String?
+  decidedAt      DateTime?
+  escalatedAt    DateTime?
+  resolvedAt     DateTime?
+  closedAt       DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  messages       DisputeMessage[]
+  timeline       DisputeTimeline[]
+  escrow         Escrow            @relation(fields: [escrowId], references: [id])
+
+  @@index([escrowId])
+  @@index([openedBy])
+  @@index([againstUser])
+  @@index([status])
+  @@map("disputes")
+}
+
+model DisputeMessage {
+  id          String   @id @default(cuid())
+  disputeId   String
+  senderId    String
+  senderRole  String
+  message     String
+  attachments String?
+  isInternal  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  dispute     Dispute  @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+
+  @@index([disputeId])
+  @@map("dispute_messages")
+}
+
+model DisputeTimeline {
+  id              String   @id @default(cuid())
+  disputeId       String
+  action          String
+  description     String
+  performedBy     String
+  performedByRole String
+  createdAt       DateTime @default(now())
+  dispute         Dispute  @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+
+  @@index([disputeId])
+  @@map("dispute_timeline")
+}
+
+model Review {
+  id            String          @id @default(cuid())
+  type          ReviewType
+  referenceId   String
+  bookingId     String?
+  source        ReviewSource    @default("DIRECT")
+  travelPhase   TravelPhase?
+  authorId      String
+  title         String?
+  content       String
+  rating        Float
+  cleanliness   Float?
+  location      Float?
+  value         Float?
+  serviceRating Float?
+  amenities     Float?
+  communication Float?
+  status        ReviewStatus    @default("PUBLISHED")
+  isVerified    Boolean         @default(false)
+  helpfulCount  Int             @default(0)
+  replyCount    Int             @default(0)
+  visitDate     DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  helpfulVotes  ReviewHelpful[]
+  photos        ReviewPhoto[]
+  replies       ReviewReply[]
+  author        User            @relation(fields: [authorId], references: [id])
+
+  @@index([authorId])
+  @@index([referenceId])
+  @@index([type])
+  @@index([status])
+  @@index([isVerified])
+  @@index([bookingId])
+  @@index([source])
+  @@index([travelPhase])
+  @@map("reviews")
+}
+
+model ReviewPhoto {
+  id        String   @id @default(cuid())
+  reviewId  String
+  url       String
+  caption   String?
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId])
+  @@map("review_photos")
+}
+
+model ReviewHelpful {
+  id        String   @id @default(cuid())
+  reviewId  String
+  userId    String
+  isHelpful Boolean  @default(true)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@unique([reviewId, userId])
+  @@index([reviewId])
+  @@index([userId])
+  @@map("review_helpful")
+}
+
+model ReviewReply {
+  id         String   @id @default(cuid())
+  reviewId   String
+  authorId   String
+  authorName String
+  authorRole String
+  content    String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  review     Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId])
+  @@map("review_replies")
+}
+
+model WishlistItem {
+  id        String   @id @default(cuid())
+  userId    String
+  serviceId String?
+  productId String?
+  createdAt DateTime @default(now())
+
+  @@unique([userId, serviceId, productId])
+  @@index([userId])
+  @@index([serviceId])
+  @@index([productId])
+  @@map("wishlist_items")
+}
+
+model ReviewerProfile {
+  id            String        @id @default(cuid())
+  userId        String        @unique
+  level         ReviewerLevel @default("NEW_REVIEWER")
+  badges        String?
+  totalReviews  Int           @default(0)
+  totalHelpful  Int           @default(0)
+  totalPhotos   Int           @default(0)
+  citiesVisited String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  user          User          @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([level])
+  @@map("reviewer_profiles")
+}
 
 enum Role {
   GUEST
@@ -85,7 +871,6 @@ enum OrderStatus {
   CANCELLED
 }
 
-// Company Enums
 enum CompanyType {
   HOTEL
   TOUR_OPERATOR
@@ -119,7 +904,6 @@ enum InvitationStatus {
   EXPIRED
 }
 
-// Destination & Activity Enums
 enum DestinationType {
   CITY
   HISTORICAL_SITE
@@ -158,1149 +942,79 @@ enum TourType {
   CUSTOM
 }
 
-// Escrow Enums
 enum EscrowStatus {
-  PENDING       // قيد الإنشاء
-  FUNDED        // تم التمويل
-  RELEASED      // تم الإطلاق للمزود
-  REFUNDED      // تم الاسترداد للمشتري
-  DISPUTED      // في نزاع
-  CANCELLED     // ملغي
+  PENDING
+  FUNDED
+  RELEASED
+  REFUNDED
+  DISPUTED
+  CANCELLED
 }
 
 enum EscrowTransactionType {
-  FUND          // تمويل
-  RELEASE       // إطلاق
-  REFUND        // استرداد
-  PARTIAL_REFUND // استرداد جزئي
-  FEE           // رسوم
+  FUND
+  RELEASE
+  REFUND
+  PARTIAL_REFUND
+  FEE
 }
 
-// Review Enums
 enum ReviewStatus {
-  PENDING     // في الانتظار (للمراجعة)
-  PUBLISHED   // منشور
-  HIDDEN      // مخفي
-  REJECTED    // مرفوض
+  PENDING
+  PUBLISHED
+  HIDDEN
+  REJECTED
 }
 
 enum ReviewType {
-  SERVICE     // تقييم خدمة/إقامة
-  ACTIVITY    // تقييم نشاط
-  DESTINATION // تقييم وجهة
-  PRODUCT     // تقييم منتج
-  COMPANY     // تقييم شركة
+  SERVICE
+  ACTIVITY
+  DESTINATION
+  PRODUCT
+  COMPANY
 }
 
 enum ReviewerLevel {
-  NEW_REVIEWER      // مراجع جديد (1-4 مراجعات)
-  ACTIVE_REVIEWER   // مراجع نشط (5-14 مراجعة)
-  EXPERT_REVIEWER   // مراجع خبير (15+ مراجعة)
-  TRUSTED_REVIEWER  // مراجع موثوق (50+ أصوات مفيدة)
+  NEW_REVIEWER
+  ACTIVE_REVIEWER
+  EXPERT_REVIEWER
+  TRUSTED_REVIEWER
 }
 
-// مصدر المراجعة (أين تظهر المراجعة)
 enum ReviewSource {
-  BOOKING           // من حجز خدمة
-  COMMUNITY         // من المجتمع (أدلة سفر، نقاشات)
-  MARKETPLACE       // من السوق (منتجات، بائعين)
-  DIRECT            // مراجعة مباشرة (بدون حجز)
+  BOOKING
+  COMMUNITY
+  MARKETPLACE
+  DIRECT
 }
 
-// مرحلة السفر (وقت كتابة المراجعة)
 enum TravelPhase {
-  BEFORE            // قبل السفر (تخطيط وتوقعات)
-  DURING            // أثناء السفر (انطباعات لحظية)
-  AFTER             // بعد السفر (تجربة شاملة)
+  BEFORE
+  DURING
+  AFTER
 }
 
-// Dispute Enums
 enum DisputeType {
-  BOOKING_ISSUE      // مشكلة في الحجز
-  PRODUCT_ISSUE      // مشكلة في المنتج
-  PAYMENT_ISSUE      // مشكلة في الدفع
-  SERVICE_QUALITY    // جودة الخدمة
-  CANCELLATION       // إلغاء
-  REFUND_REQUEST     // طلب استرداد
-  OTHER              // أخرى
+  BOOKING_ISSUE
+  PRODUCT_ISSUE
+  PAYMENT_ISSUE
+  SERVICE_QUALITY
+  CANCELLATION
+  REFUND_REQUEST
+  OTHER
 }
 
 enum DisputeStatus {
-  OPEN               // مفتوح
-  IN_PROGRESS        // قيد المعالجة
-  ESCALATED          // مُصعّد للإدارة
-  RESOLVED           // تم الحل
-  CLOSED             // مغلق
+  OPEN
+  IN_PROGRESS
+  ESCALATED
+  RESOLVED
+  CLOSED
 }
 
 enum DisputeDecision {
-  BUYER_FAVOR        // لصالح المشتري
-  PROVIDER_FAVOR     // لصالح المزود
-  SPLIT              // تقسيم
-  NO_ACTION          // لا إجراء
-}
-
-// ============================================
-// USER & AUTHENTICATION
-// ============================================
-
-model User {
-  id               String          @id @default(cuid())
-  
-  // بيانات الدخول
-  email            String?         @unique
-  phone            String?         @unique
-  passwordHash     String?
-  
-  // المعلومات الأساسية
-  firstName        String?
-  lastName         String?
-  displayName      String
-  avatar           String?
-  bio              String?
-  dateOfBirth      DateTime?
-  gender           Gender?
-  nationality      String?
-  
-  // معلومات الموقع
-  country          String?
-  city             String?
-  address          String?
-  
-  // الحالة
-  status           UserStatus      @default(PENDING)
-  role             Role            @default(USER)
-  emailVerified    DateTime?
-  phoneVerified    DateTime?
-  
-  // العضوية
-  membershipLevel  MembershipLevel @default(BRONZE)
-  loyaltyPoints    Int             @default(0)
-  
-  // التفضيلات
-  language         String          @default("ar")
-  preferredCurrency String         @default("SYP")
-  notificationSettings String?     // JSON
-  
-  // التواريخ
-  lastLogin        DateTime?
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-
-  // Relations
-  oauthAccounts    OAuthAccount[]
-  sessions         Session[]
-  verifications    UserVerification[]
-  products         Product[]
-  topics           Topic[]
-  replies          Reply[]
-  services         Service[]
-  bookingsAsGuest  Booking[]       @relation("GuestBookings")
-  bookingsAsHost   Booking[]       @relation("HostBookings")
-  orders           Order[]
-  cart             Cart?
-  
-  // Company Relations
-  ownedCompanies   Company[]       @relation("CompanyOwner")
-  employeeOf       CompanyEmployee[]
-
-  // Review Relations
-  reviews          Review[]
-  reviewerProfile  ReviewerProfile?
-  reviewHelpful    ReviewHelpful[]
-
-  @@index([email])
-  @@index([phone])
-  @@index([role])
-  @@index([status])
-  @@map("users")
-}
-
-model OAuthAccount {
-  id            String        @id @default(cuid())
-  userId        String
-  provider      OAuthProvider
-  providerId    String
-  accessToken   String?
-  refreshToken  String?
-  expiresAt     DateTime?
-  createdAt     DateTime      @default(now())
-  
-  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@unique([provider, providerId])
-  @@index([userId])
-  @@map("oauth_accounts")
-}
-
-model Session {
-  id            String    @id @default(cuid())
-  userId        String
-  token         String    @unique
-  userAgent     String?
-  ipAddress     String?
-  expiresAt     DateTime
-  createdAt     DateTime  @default(now())
-  
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@index([userId])
-  @@index([token])
-  @@map("sessions")
-}
-
-model OTPCode {
-  id            String    @id @default(cuid())
-  phone         String
-  code          String
-  type          OTPType
-  verified      Boolean   @default(false)
-  expiresAt     DateTime
-  createdAt     DateTime  @default(now())
-  
-  @@unique([phone, code, type])
-  @@index([phone])
-  @@map("otp_codes")
-}
-
-model UserVerification {
-  id              String            @id @default(cuid())
-  userId          String
-  type            VerificationType
-  status          VerificationStatus @default(PENDING)
-  
-  // الوثائق
-  documentType    String?
-  documentUrl     String?
-  documentNumber  String?
-  
-  // التحقق
-  verifiedAt      DateTime?
-  verifiedBy      String?
-  rejectionReason String?
-  
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  
-  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@index([userId])
-  @@index([type])
-  @@index([status])
-  @@map("user_verifications")
-}
-
-// ============================================
-// COMPANIES
-// ============================================
-
-model Company {
-  id              String        @id @default(cuid())
-
-  // معلومات أساسية
-  name            String
-  slug            String        @unique
-  type            CompanyType
-  description     String?
-
-  // معلومات التواصل
-  email           String?
-  phone           String?
-  website         String?
-
-  // الموقع
-  country         String?
-  city            String?
-  address         String?
-
-  // الوثائق
-  logo            String?
-  coverImage      String?
-  commercialReg   String?       // رقم السجل التجاري
-  taxNumber       String?       // الرقم الضريبي
-  documents       String?       // JSON array of document URLs
-
-  // الحالة
-  status          CompanyStatus @default(PENDING)
-  verifiedAt      DateTime?
-  verifiedBy      String?       // Admin who verified
-  rejectionReason String?
-
-  // إحصائيات
-  totalServices   Int           @default(0)
-  totalProducts   Int           @default(0)
-  totalBookings   Int           @default(0)
-  rating          Float         @default(0)
-  reviewCount     Int           @default(0)
-
-  // المالك
-  ownerId         String
-
-  // التواريخ
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-
-  // Relations
-  owner           User          @relation("CompanyOwner", fields: [ownerId], references: [id])
-  employees       CompanyEmployee[]
-  invitations     CompanyInvitation[]
-  services        Service[]
-  products        Product[]
-
-  @@index([type])
-  @@index([status])
-  @@index([ownerId])
-  @@map("companies")
-}
-
-model CompanyEmployee {
-  id          String      @id @default(cuid())
-  companyId   String
-  userId      String
-  role        EmployeeRole @default(STAFF)
-  permissions String?     // JSON array of permissions
-  invitedBy   String?
-  joinedAt    DateTime    @default(now())
-  createdAt   DateTime    @default(now())
-
-  company     Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([companyId, userId])
-  @@index([companyId])
-  @@index([userId])
-  @@map("company_employees")
-}
-
-model CompanyInvitation {
-  id          String          @id @default(cuid())
-  companyId   String
-  email       String
-  role        EmployeeRole    @default(STAFF)
-  token       String          @unique
-  status      InvitationStatus @default(PENDING)
-  invitedBy   String
-  expiresAt   DateTime
-  createdAt   DateTime        @default(now())
-
-  company     Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  @@index([companyId])
-  @@index([email])
-  @@index([token])
-  @@map("company_invitations")
-}
-
-// ============================================
-// DESTINATIONS & ACTIVITIES
-// ============================================
-
-model Destination {
-  id              String   @id @default(cuid())
-  
-  // معلومات أساسية
-  name            String
-  slug            String   @unique
-  type            DestinationType
-  description     String
-  shortDesc       String?  // وصف مختصر
-  
-  // الموقع
-  country         String   @default("سوريا")
-  city            String
-  address         String?
-  latitude        Float?
-  longitude       Float?
-  
-  // الصور
-  images          String   // JSON array of image URLs
-  coverImage      String?
-  
-  // التفاصيل
-  highlights      String?  // JSON array of highlights
-  bestTimeToVisit String?
-  entryFee        Float?   @default(0)
-  openingHours    String?  // JSON object
-  duration        String?  // الوقت المتوقع للزيارة
-  
-  // إحصائيات
-  rating          Float    @default(0)
-  reviewCount     Int      @default(0)
-  viewCount       Int      @default(0)
-  visitCount      Int      @default(0)
-  
-  // حالة التحقق
-  isVerified      Boolean  @default(false)
-  verifiedAt      DateTime?
-  verifiedBy      String?
-  
-  // المالك
-  ownerId         String?  // صاحب المحتوى (اختياري)
-  companyId       String?  // شركة مرتبطة (اختياري)
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  // Relations
-  activities      Activity[]
-  tourDestinations TourDestination[]
-  
-  @@index([type])
-  @@index([city])
-  @@index([isVerified])
-  @@map("destinations")
-}
-
-model Activity {
-  id              String       @id @default(cuid())
-  
-  // معلومات أساسية
-  title           String
-  slug            String       @unique
-  type            ActivityType
-  description     String
-  shortDesc       String?
-  
-  // الموقع
-  destinationId   String?
-  location        String
-  meetingPoint    String?
-  latitude        Float?
-  longitude       Float?
-  
-  // التفاصيل
-  duration        Int          // بالدقائق
-  maxParticipants Int          @default(10)
-  minParticipants Int          @default(1)
-  difficultyLevel String?      // easy, moderate, hard
-  ageRestriction  String?
-  
-  // السعر
-  price           Float
-  currency        String       @default("SYP")
-  pricePerPerson  Boolean      @default(true)
-  discountPrice   Float?
-  
-  // الصور
-  images          String       // JSON array
-  coverImage      String?
-  videoUrl        String?
-  
-  // التضمينات والاستثناءات
-  included        String?      // JSON array
-  excluded        String?      // JSON array
-  requirements    String?      // JSON array
-  
-  // الجدولة
-  availability    String?      // JSON object
-  cancellationPolicy String?
-  
-  // إحصائيات
-  rating          Float        @default(0)
-  reviewCount     Int          @default(0)
-  bookingCount    Int          @default(0)
-  
-  // حالة التحقق
-  status          CompanyStatus @default(PENDING)
-  isFeatured      Boolean      @default(false)
-  
-  // المالك
-  ownerId         String?
-  companyId       String?
-  
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-  
-  // Relations
-  destination     Destination? @relation(fields: [destinationId], references: [id])
-  tourActivities  TourActivity[]
-  availabilitySlots ActivityAvailability[]
-  
-  @@index([type])
-  @@index([destinationId])
-  @@index([status])
-  @@index([isFeatured])
-  @@map("activities")
-}
-
-model ActivityAvailability {
-  id            String   @id @default(cuid())
-  activityId    String
-  date          DateTime
-  startTime     String   // HH:mm
-  endTime       String   // HH:mm
-  maxCapacity   Int
-  bookedCount   Int      @default(0)
-  isAvailable   Boolean  @default(true)
-  price         Float?   // سعر خاص لهذه الفترة
-  createdAt     DateTime @default(now())
-  
-  activity      Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
-  
-  @@unique([activityId, date, startTime])
-  @@index([activityId])
-  @@index([date])
-  @@map("activity_availability")
-}
-
-// ============================================
-// TOURS
-// ============================================
-
-model Tour {
-  id              String       @id @default(cuid())
-  
-  // معلومات أساسية
-  title           String
-  slug            String       @unique
-  type            TourType
-  description     String
-  shortDesc       String?
-  
-  // التفاصيل
-  durationDays    Int
-  durationNights  Int
-  maxParticipants Int          @default(15)
-  minParticipants Int          @default(2)
-  
-  // السعر
-  pricePerPerson  Float
-  currency        String       @default("SYP")
-  singleSupplement Float?      // إضافة غرفة مفردة
-  
-  // الصور
-  images          String       // JSON array
-  coverImage      String?
-  
-  // التضمينات
-  included        String?      // JSON array
-  excluded        String?      // JSON array
-  
-  // الجدولة
-  departureDates  String?      // JSON array of available dates
-  cancellationPolicy String?
-  
-  // إحصائيات
-  rating          Float        @default(0)
-  reviewCount     Int          @default(0)
-  bookingCount    Int          @default(0)
-  
-  // حالة التحقق
-  status          CompanyStatus @default(PENDING)
-  isFeatured      Boolean      @default(false)
-  
-  // المالك
-  ownerId         String?
-  companyId       String?
-  
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-  
-  // Relations
-  destinations    TourDestination[]
-  dailyProgram    TourDay[]
-  tourActivities  TourActivity[]
-  availability    TourAvailability[]
-  
-  @@index([type])
-  @@index([status])
-  @@index([isFeatured])
-  @@map("tours")
-}
-
-model TourDestination {
-  id            String      @id @default(cuid())
-  tourId        String
-  destinationId String
-  dayNumber     Int
-  duration      Int?        // بالساعات
-  notes         String?
-  
-  tour          Tour        @relation(fields: [tourId], references: [id], onDelete: Cascade)
-  destination   Destination @relation(fields: [destinationId], references: [id])
-  
-  @@unique([tourId, dayNumber, destinationId])
-  @@index([tourId])
-  @@index([destinationId])
-  @@map("tour_destinations")
-}
-
-model TourDay {
-  id            String   @id @default(cuid())
-  tourId        String
-  dayNumber     Int
-  title         String
-  description   String
-  activities    String?  // JSON array of activity descriptions
-  meals         String?  // JSON array (breakfast, lunch, dinner)
-  accommodation String?
-  notes         String?
-  
-  tour          Tour     @relation(fields: [tourId], references: [id], onDelete: Cascade)
-  
-  @@unique([tourId, dayNumber])
-  @@index([tourId])
-  @@map("tour_days")
-}
-
-model TourActivity {
-  id          String   @id @default(cuid())
-  tourId      String
-  activityId  String
-  dayNumber   Int
-  startTime   String?  // HH:mm
-  duration    Int?     // بالدقائق
-  notes       String?
-  
-  tour        Tour     @relation(fields: [tourId], references: [id], onDelete: Cascade)
-  activity    Activity @relation(fields: [activityId], references: [id])
-  
-  @@index([tourId])
-  @@index([activityId])
-  @@map("tour_activities")
-}
-
-model TourAvailability {
-  id            String   @id @default(cuid())
-  tourId        String
-  startDate     DateTime
-  endDate       DateTime
-  maxCapacity   Int
-  bookedCount   Int      @default(0)
-  isAvailable   Boolean  @default(true)
-  price         Float?   // سعر خاص
-  createdAt     DateTime @default(now())
-  
-  tour          Tour     @relation(fields: [tourId], references: [id], onDelete: Cascade)
-  
-  @@index([tourId])
-  @@index([startDate])
-  @@map("tour_availability")
-}
-
-// ============================================
-// MARKETPLACE
-// ============================================
-
-model Product {
-  id          String   @id @default(cuid())
-  name        String
-  description String
-  price       Float
-  category    String
-  location    String
-  rating      Float    @default(0)
-  reviews     Int      @default(0)
-  image       String
-  vendorId    String
-  vendor      User     @relation(fields: [vendorId], references: [id])
-  vendorName  String?  // Display name for vendor (e.g., "حلواني الشام")
-  companyId   String?  // Optional company link
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  company     Company? @relation(fields: [companyId], references: [id])
-  cartItems   CartItem[]
-  orderItems  OrderItem[]
-
-  @@index([companyId])
-  @@map("products")
-}
-
-model Cart {
-  id     String     @id @default(cuid())
-  userId String     @unique
-  user   User       @relation(fields: [userId], references: [id])
-  items  CartItem[]
-
-  @@map("carts")
-}
-
-model CartItem {
-  id        String  @id @default(cuid())
-  cartId    String
-  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  productId String
-  product   Product @relation(fields: [productId], references: [id])
-  quantity  Int     @default(1)
-
-  @@unique([cartId, productId])
-  @@map("cart_items")
-}
-
-// ============================================
-// COMMUNITY
-// ============================================
-
-model Topic {
-  id            String   @id @default(cuid())
-  title         String
-  content       String
-  authorId      String
-  author        User     @relation(fields: [authorId], references: [id])
-  categoryId    String
-  subCategoryId String?
-  likesCount    Int      @default(0)
-  repliesCount  Int      @default(0)
-  isOfficial    Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime?
-
-  // Relations
-  replies Reply[]
-
-  @@map("topics")
-}
-
-model Reply {
-  id         String   @id @default(cuid())
-  topicId    String
-  topic      Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
-  content    String
-  authorId   String
-  author     User     @relation(fields: [authorId], references: [id])
-  likesCount Int      @default(0)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime?
-
-  @@map("replies")
-}
-
-// ============================================
-// BOOKINGS
-// ============================================
-
-model Booking {
-  id          String        @id @default(cuid())
-  guestId     String
-  guest       User          @relation("GuestBookings", fields: [guestId], references: [id])
-  hostId      String
-  host        User          @relation("HostBookings", fields: [hostId], references: [id])
-  serviceId   String
-  service     Service       @relation(fields: [serviceId], references: [id])
-  checkIn     DateTime
-  checkOut    DateTime
-  guests      Int           @default(1)
-  totalPrice  Float
-  status      BookingStatus @default(PENDING)
-  escrowId    String?       // رابط حساب الضمان
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-
-  @@map("bookings")
-}
-
-// ============================================
-// SERVICES (LISTINGS)
-// ============================================
-
-model Service {
-  id              String   @id @default(cuid())
-  title           String
-  description     String
-  location        String
-  price           Float
-  originalPrice   Float?   // السعر قبل الخصم
-  rating          Float    @default(0)
-  reviews         Int      @default(0)
-  views           Int      @default(0)
-  images          String   // JSON array
-  type            String
-  amenities       String   // JSON array
-  features        String   // JSON array
-  mainCategoryId  String
-  subCategoryId   String?
-  subSubCategoryId String? // تصنيف فرعي ثالث
-  
-  // معلومات المضيف (كحقول نصية للمرونة)
-  hostId          String?
-  hostName        String?  // اسم المضيف
-  hostAvatar      String?  // صورة المضيف
-  isSuperhost     Boolean  @default(false)
-  
-  // علاقات
-  host            User?    @relation(fields: [hostId], references: [id])
-  companyId       String?  // Optional company link
-  
-  // خصائص الإقامة
-  maxGuests       Int      @default(4)
-  bedrooms        Int      @default(1)
-  beds            Int      @default(1)
-  baths           Int      @default(1)
-  
-  // حالة الخدمة
-  isPopular       Boolean  @default(false)
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  // Relations
-  company     Company? @relation(fields: [companyId], references: [id])
-  bookings    Booking[]
-
-  @@index([companyId])
-  @@index([mainCategoryId])
-  @@index([isPopular])
-  @@map("services")
-}
-
-// ============================================
-// ORDERS
-// ============================================
-
-model Order {
-  id        String      @id @default(cuid())
-  userId    String
-  user      User        @relation(fields: [userId], references: [id])
-  items     OrderItem[]
-  total     Float
-  status    OrderStatus @default(PENDING)
-  escrowId  String?     // رابط حساب الضمان
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-
-  @@map("orders")
-}
-
-model OrderItem {
-  id        String  @id @default(cuid())
-  orderId   String
-  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId String
-  product   Product @relation(fields: [productId], references: [id])
-  quantity  Int
-  price     Float
-
-  @@map("order_items")
-}
-
-// ============================================
-// ESCROW (FINANCIAL GUARANTEE)
-// ============================================
-
-model Escrow {
-  id              String              @id @default(cuid())
-  
-  // الأطراف
-  buyerId         String              // المشتري/الضيف
-  providerId      String              // البائع/المضيف
-  
-  // المبلغ
-  amount          Float               // المبلغ الأساسي
-  platformFee     Float               @default(0) // رسوم المنصة
-  netAmount       Float               // المبلغ الصافي للمزود
-  currency        String              @default("SYP")
-  
-  // الحالة
-  status          EscrowStatus        @default(PENDING)
-  
-  // المرجع
-  referenceType   String              // BOOKING, ORDER, ACTIVITY
-  referenceId     String              // معرف الحجز أو الطلب
-  
-  // التواريخ المهمة
-  fundedAt        DateTime?           // تاريخ التمويل
-  releasedAt      DateTime?           // تاريخ الإطلاق
-  refundedAt      DateTime?           // تاريخ الاسترداد
-  autoReleaseAt   DateTime?           // تاريخ الإطلاق التلقائي
-  
-  // الملاحظات
-  notes           String?
-  releaseNotes    String?
-  refundReason    String?
-  
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
-  
-  // Relations
-  transactions    EscrowTransaction[]
-  disputes        Dispute[]
-  
-  @@index([buyerId])
-  @@index([providerId])
-  @@index([status])
-  @@index([referenceType, referenceId])
-  @@map("escrows")
-}
-
-model EscrowTransaction {
-  id            String              @id @default(cuid())
-  escrowId      String
-  
-  // نوع المعاملة
-  type          EscrowTransactionType
-  
-  // المبلغ
-  amount        Float
-  currency      String              @default("SYP")
-  
-  // التفاصيل
-  description   String?
-  metadata      String?             // JSON للبيانات الإضافية
-  
-  // من وإلى
-  fromUserId    String?             // المستخدم الذي خرج منه المبلغ
-  toUserId      String?             // المستخدم الذي دخل إليه المبلغ
-  
-  createdAt     DateTime            @default(now())
-  
-  // Relations
-  escrow        Escrow              @relation(fields: [escrowId], references: [id], onDelete: Cascade)
-  
-  @@index([escrowId])
-  @@index([type])
-  @@map("escrow_transactions")
-}
-
-// ============================================
-// DISPUTES (المنازعات)
-// ============================================
-
-model Dispute {
-  id              String          @id @default(cuid())
-  
-  // المرجع
-  escrowId        String          // رابط بحساب الضمان
-  referenceType   String          // BOOKING, ORDER
-  referenceId     String          // معرف الحجز أو الطلب
-  
-  // الأطراف
-  openedBy        String          // من فتح المنازعة
-  againstUser     String          // ضد من
-  
-  // النوع والسبب
-  type            DisputeType
-  reason          String
-  description     String
-  
-  // الحالة
-  status          DisputeStatus   @default(OPEN)
-  
-  // القرار
-  decision        DisputeDecision?
-  decisionReason  String?
-  decidedBy       String?         // Admin who decided
-  decidedAt       DateTime?
-  
-  // التواريخ
-  escalatedAt     DateTime?
-  resolvedAt      DateTime?
-  closedAt        DateTime?
-  
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  
-  // Relations
-  messages        DisputeMessage[]
-  timeline        DisputeTimeline[]
-  escrow          Escrow          @relation(fields: [escrowId], references: [id])
-  
-  @@index([escrowId])
-  @@index([openedBy])
-  @@index([againstUser])
-  @@index([status])
-  @@map("disputes")
-}
-
-model DisputeMessage {
-  id          String   @id @default(cuid())
-  disputeId   String
-  
-  // المرسل
-  senderId    String
-  senderRole  String   // BUYER, PROVIDER, ADMIN
-  
-  // المحتوى
-  message     String
-  attachments String?  // JSON array of file URLs
-  
-  // هل هي رسالة داخلية (للإدارة فقط)
-  isInternal  Boolean  @default(false)
-  
-  createdAt   DateTime @default(now())
-  
-  // Relations
-  dispute     Dispute  @relation(fields: [disputeId], references: [id], onDelete: Cascade)
-  
-  @@index([disputeId])
-  @@map("dispute_messages")
-}
-
-model DisputeTimeline {
-  id              String   @id @default(cuid())
-  disputeId       String
-  
-  // الحدث
-  action          String   // OPENED, RESPONDED, ESCALATED, DECIDED, CLOSED
-  description     String
-  
-  // من قام بالحدث
-  performedBy     String
-  performedByRole String   // BUYER, PROVIDER, ADMIN, SYSTEM
-  
-  createdAt       DateTime @default(now())
-  
-  // Relations
-  dispute         Dispute  @relation(fields: [disputeId], references: [id], onDelete: Cascade)
-  
-  @@index([disputeId])
-  @@map("dispute_timeline")
-}
-
-// ============================================
-// REVIEWS MODELS
-// ============================================
-
-model Review {
-  id              String        @id @default(cuid())
-
-  // المرجع - ما يتم تقييمه
-  type            ReviewType
-  referenceId     String        // معرف الخدمة/النشاط/الوجهة/المنتج
-  bookingId       String?       // رابط بالحجز (للتحقق)
-
-  // مصدر المراجعة ومرحلة السفر
-  source          ReviewSource  @default(DIRECT)   // مصدر المراجعة
-  travelPhase     TravelPhase?  // مرحلة السفر (قبل/أثناء/بعد)
-
-  // الكاتب
-  authorId        String
-  author          User          @relation(fields: [authorId], references: [id])
-
-  // المحتوى
-  title           String?       // عنوان التقييم
-  content         String        // محتوى التقييم
-
-  // التقييمات المتعددة (1-5)
-  rating          Float         // التقييم العام (محسوب تلقائياً)
-  cleanliness     Float?        // النظافة
-  location        Float?        // الموقع
-  value           Float?        // القيمة
-  serviceRating   Float?        // الخدمة
-  amenities       Float?        // المرافق
-  communication   Float?        // التواصل
-
-  // الحالة
-  status          ReviewStatus  @default(PUBLISHED)
-  isVerified      Boolean       @default(false)  // من حجز فعلي - شارة التوثيق
-
-  // الإحصائيات
-  helpfulCount    Int           @default(0)      // عدد الأصوات المفيدة
-  replyCount      Int           @default(0)      // عدد الردود
-
-  // التواريخ
-  visitDate       DateTime?     // تاريخ الزيارة
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-
-  // Relations
-  photos          ReviewPhoto[]
-  helpfulVotes    ReviewHelpful[]
-  replies         ReviewReply[]
-
-  @@index([authorId])
-  @@index([referenceId])
-  @@index([type])
-  @@index([status])
-  @@index([isVerified])
-  @@index([bookingId])
-  @@index([source])
-  @@index([travelPhase])
-  @@map("reviews")
-}
-
-model ReviewPhoto {
-  id          String   @id @default(cuid())
-  reviewId    String
-  review      Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
-  
-  url         String   // رابط الصورة
-  caption     String?  // وصف الصورة
-  order       Int      @default(0)
-  
-  createdAt   DateTime @default(now())
-  
-  @@index([reviewId])
-  @@map("review_photos")
-}
-
-model ReviewHelpful {
-  id          String   @id @default(cuid())
-  reviewId    String
-  review      Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  isHelpful   Boolean  @default(true)  // true = مفيد، false = غير مفيد
-  
-  createdAt   DateTime @default(now())
-  
-  @@unique([reviewId, userId])
-  @@index([reviewId])
-  @@index([userId])
-  @@map("review_helpful")
-}
-
-model ReviewReply {
-  id          String   @id @default(cuid())
-  reviewId    String
-  review      Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
-  
-  // الكاتب
-  authorId    String
-  authorName  String   // اسم الكاتب (للعرض السريع)
-  authorRole  String   // PROVIDER, ADMIN, USER
-  
-  // المحتوى
-  content     String
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  @@index([reviewId])
-  @@map("review_replies")
-}
-
-// ============================================
-// WISHLIST (المفضلة)
-// ============================================
-
-model WishlistItem {
-  id          String   @id @default(cuid())
-  userId      String
-  serviceId   String?
-  productId   String?
-  createdAt   DateTime @default(now())
-
-  @@index([userId])
-  @@index([serviceId])
-  @@index([productId])
-  @@unique([userId, serviceId, productId])
-  @@map("wishlist_items")
-}
-
-model ReviewerProfile {
-  id              String        @id @default(cuid())
-  userId          String        @unique
-  user            User          @relation(fields: [userId], references: [id])
-  
-  // المستوى والشارات
-  level           ReviewerLevel @default(NEW_REVIEWER)
-  badges          String?       // JSON array of badges
-  
-  // الإحصائيات
-  totalReviews    Int           @default(0)
-  totalHelpful    Int           @default(0)  // إجمالي الأصوات المفيدة
-  totalPhotos     Int           @default(0)
-  
-  // المدن التي زارها
-  citiesVisited   String?       // JSON array of cities
-  
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  
-  @@index([userId])
-  @@index([level])
-  @@map("reviewer_profiles")
+  BUYER_FAVOR
+  PROVIDER_FAVOR
+  SPLIT
+  NO_ACTION
 }

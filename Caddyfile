@@ -5,8 +5,43 @@
 # - HTTP reverse proxy with XTransformPort
 # - WebSocket support for Socket.io
 # - Static file serving
+# - NodeBB Forum integration
 
 :81 {
+        # ============================================
+        # NodeBB Forum (Community)
+        # منتدى المجتمع NodeBB
+        # ============================================
+        
+        @nodebb_socket {
+                path /forum/socket.io/*
+        }
+        
+        handle @nodebb_socket {
+                reverse_proxy localhost:3001 {
+                        header_up Host {host}
+                        header_up X-Forwarded-For {remote_host}
+                        header_up X-Forwarded-Proto {scheme}
+                        header_up X-Real-IP {remote_host}
+                        header_up Upgrade {header.Upgrade}
+                        header_up Connection {header.Connection}
+                }
+        }
+        
+        @nodebb {
+                path /forum/*
+        }
+        
+        handle @nodebb {
+                uri strip_prefix /forum
+                reverse_proxy localhost:3001 {
+                        header_up Host {host}
+                        header_up X-Forwarded-For {remote_host}
+                        header_up X-Forwarded-Proto {scheme}
+                        header_up X-Real-IP {remote_host}
+                }
+        }
+
         # ============================================
         # Socket.io Handler (Polling + WebSocket)
         # معالج Socket.io (Polling + WebSocket)

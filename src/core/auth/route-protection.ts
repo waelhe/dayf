@@ -46,6 +46,11 @@ export const PUBLIC_ROUTES: RouteProtection[] = [
   { level: 'public', pattern: /^\/api\/tours\/?$/, methods: ['GET'] },
   { level: 'public', pattern: /^\/api\/tours\/[^/]+$/, methods: ['GET'] },
 
+  // SSO routes (for testing and integration)
+  { level: 'public', pattern: /^\/api\/sso\/test\/?$/, methods: ['GET', 'POST'] },
+  { level: 'public', pattern: /^\/api\/sso\/discourse\/?$/, methods: ['GET', 'POST'] },
+  { level: 'public', pattern: /^\/api\/sso\/saleor\/?$/, methods: ['GET', 'POST', 'PUT'] },
+
   // Health check
   { level: 'public', pattern: /^\/api\/health$/, methods: ['GET'] },
 ];

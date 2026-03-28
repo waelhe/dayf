@@ -149,22 +149,41 @@
 
 ## 🆕 مرحلة التكامل (2025)
 
-### حالة التكامل: قيد التخطيط
+### حالة التكامل: قيد التنفيذ
 
 | المرحلة | الحالة |
 |---------|--------|
-| **Phase 0: التحقق من البيئة** | ⏳ جاهز للبدء |
-| **Phase 1: البنية التحتية (PG + Redis)** | ⬜ لم يبدأ |
-| **Phase 2: Discourse** | ⬜ لم يبدأ |
-| **Phase 3: Saleor** | ⬜ لم يبدأ |
-| **Phase 4: SSO Integration** | ⬜ لم يبدأ |
-| **Phase 5: التحسين التدريجي** | ⬜ لم يبدأ |
+| **Phase 0: التحقق من البيئة** | ✅ مكتمل |
+| **Phase 1: البنية التحتية (PG + Redis)** | ✅ مكتمل |
+| **Phase 2: Discourse (منتدى)** | ✅ مكتمل |
+| **Phase 3: Saleor (سوق)** | ✅ مكتمل |
+| **Phase 4: SSO Integration** | ⏳ قيد التنفيذ |
+| **Phase 5: التحسين التدريجي** | ⬜ مستقبلاً |
+
+### الخدمات النشطة:
+
+| الخدمة | المنفذ | الحالة |
+|--------|--------|--------|
+| **Dayf (Next.js)** | 3000 | ✅ يعمل |
+| **PostgreSQL 16.2** | 5432 | ✅ يعمل (مع hstore + pgvector) |
+| **Redis 7.2.4** | 6379 | ✅ يعمل |
+| **Discourse** | 3001 | ✅ يعمل |
+| **Saleor GraphQL API** | 3002 | ✅ يعمل |
+
+### SSO Status:
+- ✅ SSO endpoint: `/api/sso/discourse`
+- ✅ Discourse Connect configured in database
+- ⏳ Saleor OAuth integration pending
 
 ### وثائق التكامل:
 - 📄 المواصفة: `.specify/specs/004-integration/spec.md`
 - 📄 الخطة: `.specify/specs/004-integration/plan.md`
 - 📄 المهام: `.specify/specs/004-integration/tasks.md`
 - 📄 تفصيلي: `specs/005-integration-plan/` (الوثائق الكاملة)
+- 📦 تحميل: `download/integration-plan-docs.zip`
+
+### استهلاك الذاكرة الحالي:
+- Dayf + PostgreSQL + Redis + Discourse + Saleor = **~650 MB** ✅
 
 ---
 
